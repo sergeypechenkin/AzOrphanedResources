@@ -25,21 +25,15 @@ param(
 Write-Output "Running with parameters: DryRun = $DryRun, ConnectionAssetName = $ConnectionAssetName, TenantId = $TenantId, ResourceGroupName = $ResourceGroupName"
 
 # Ensures you do not inherit an AzContext in your runbook
-Disable-AzContextAutosave -Scope Process | Out-Null
+Disable-AzContextAutosave -Scope Process
 
-# Connect using a Managed Service Identity
-try {
-        $AzureContext = (Connect-AzAccount -Identity).context
-    }
-catch{
-        Write-Output "There is no system-assigned user identity. Aborting."; 
-        exit
-    }
+# Connect to Azure with system-assigned managed identity
+$AzureContext = (Connect-AzAccount -Identity).context
 
 # set and store context
-$AzureContext = Set-AzContext -SubscriptionName $AzureContext.Subscription `
-    -DefaultProfile $AzureContext
+$AzureContext = Set-AzContext -SubscriptionName $AzureContext.Subscription -DefaultProfile $AzureContext
 
+$SubscriptionId = $(Get-AzContext).Subscription.Id
 
 # Function that sends a query to AzGraph and optionally deletes returned resources
 # Parameters:
@@ -57,7 +51,6 @@ function Inspect-Resources {
         $Query = $Query + " | where resourceGroup == '$ResourceGroupName'"
     }
     # Send query
-    Write-Output "Query = ", $Query
     $Resources = Search-AzGraph $Query
     # Process query results
     if ($Resources) {
