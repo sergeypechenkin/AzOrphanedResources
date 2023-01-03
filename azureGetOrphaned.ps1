@@ -3,13 +3,13 @@ param(
   [switch]$DryRun = $true,
 
   [Parameter(mandatory = $false)]
-  [string]$ConnectionAssetName = "AzureRunAsConnection",
+  [string]$ConnectionAssetName = "Automation-Hub-northeu",
 
   [Parameter(mandatory = $false)]
   [string]$ResourceGroupName,
 
   [Parameter(mandatory = $false)]
-  [string]$TenantId = "72f988bf-86f1-41af-91ab-2d7cd011db47",
+  [string]$TenantId = "10868dd3-36ce-4e6e-bf97-527004171368",
 
   [Parameter(mandatory = $false)]
   [switch]$TagResources = $true,
@@ -24,27 +24,22 @@ param(
 # Debug info
 Write-Output "Running with parameters: DryRun = $DryRun, ConnectionAssetName = $ConnectionAssetName, TenantId = $TenantId, ResourceGroupName = $ResourceGroupName"
 
-# Authentification using Azure Automation connections
-$Connection = Get-AutomationConnection -Name $ConnectionAssetName
-if ($Connection) {
-    Write-Output "Connection $ConnectionAssetName found"
-} else {
-    Write-Output "Connection $ConnectionAssetName not found, exiting"
-    exit
-}
-# The TenantID can be supplied over a parameter
-$AzAuthentication = Connect-AzAccount -ServicePrincipal `
-                                      -TenantId $TenantId  `
-                                      -ApplicationId $Connection.ApplicationId `
-                                      -CertificateThumbprint $Connection.CertificateThumbprint
-# Verify authentification
-if (!$AzAuthentication) {
-    Write-Output "Failed to authenticate Azure: $($_.exception.message)"
-    exit
-} else {
-    $SubscriptionId = $(Get-AzContext).Subscription.Id
-    Write-Output = "Authentication as service principal for Azure successful on subscription $SubscriptionId."
-}
+# Ensures you do not inherit an AzContext in your runbook
+Disable-AzContextAutosave -Scope Process | Out-Null
+
+# Connect using a Managed Service Identity
+try {
+        $AzureContext = (Connect-AzAccount -Identity).context
+    }
+catch{
+        Write-Output "There is no system-assigned user identity. Aborting."; 
+        exit
+    }
+
+# set and store context
+$AzureContext = Set-AzContext -SubscriptionName $AzureContext.Subscription `
+    -DefaultProfile $AzureContext
+
 
 # Function that sends a query to AzGraph and optionally deletes returned resources
 # Parameters:
@@ -62,6 +57,7 @@ function Inspect-Resources {
         $Query = $Query + " | where resourceGroup == '$ResourceGroupName'"
     }
     # Send query
+    Write-Output "Query = ", $Query
     $Resources = Search-AzGraph $Query
     # Process query results
     if ($Resources) {
@@ -118,5 +114,5 @@ Inspect-Resources -Query $Query -ObjectName 'NIC' -DryRun $DryRun
 # Public IPs
 # To show aliases for public IPs:
 # $(Search-AzGraph -Query "Resources | where type =~ 'Microsoft.Network/publicipaddresses' | limit 1 | project aliases").aliases
-$Query = "Resources | where subscriptionId=='$SubscriptionId' and type =~ 'microsoft.network/publicipaddresses' and isnull(aliases['Microsoft.Network/publicIPAddresses/ipConfiguration'])"
+$Query = "Resources | where subscriptionId=='$SubscriptionId' and type =~ 'microsoft.network/publicipaddresses' and properties.ipConfiguration == '' and properties.natGateway == ''"
 Inspect-Resources -Query $Query -ObjectName 'PIP' -DryRun $DryRun
