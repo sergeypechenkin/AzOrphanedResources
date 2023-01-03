@@ -5,7 +5,7 @@ This repository contains one single PowerShell script that is designed to serve 
 ## How to use
 
 1. Create an Azure Automation Account (see a quickstart [here](https://learn.microsoft.com/en-us/azure/automation/automation-create-standalone-account?tabs=azureportal))
-2. Consider using a System-assigned managed identity or user-assigned managed identity [here](https://learn.microsoft.com/en-us/azure/automation/enable-managed-identity-for-automation))
+2. Consider using a System-assigned managed identity or a User-assigned managed identity [here](https://learn.microsoft.com/en-us/azure/automation/enable-managed-identity-for-automation)
 3. Find out your tenant's ID (for example, go to the Azure Active Directory)
 4. Create a new Powershell Runbook, and paste the code in [the script](azureGetOrphaned.ps1) in this repository
 5. Replace the defaults with your tenant ID, and the name of the Managed Identity (if it differs from `Automation-Hub-northeu`)
