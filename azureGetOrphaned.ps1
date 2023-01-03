@@ -101,7 +101,7 @@ function Inspect-Resources {
 }
 
 # Get orphan disks
-$Query = "Resources | where subscriptionId=='$SubscriptionId' and type =~ 'microsoft.compute/disks' and isnull(managedBy)"
+$Query = "Resources | where subscriptionId=='$SubscriptionId' and type =~ 'microsoft.compute/disks' and managedBy ==''"
 Inspect-Resources -Query $Query -ObjectName 'disk' -DryRun $DryRun
 
 # Get orphan NSGs
